@@ -1,4 +1,8 @@
 [
   "obsidian-excalidraw-plugin",
-  "obsidian-git"
+  "obsidian-git",
+  "dataview",
+  "table-editor-obsidian",
+  "code-styler",
+  "obsidian-icon-folder"
 ]
