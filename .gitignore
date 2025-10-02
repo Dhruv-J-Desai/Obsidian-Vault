@@ -1,0 +1,14 @@
+# macOS
+.DS_Store
+
+# Obsidian runtime/state
+.obsidian/workspace*
+.obsidian/cache/
+.obsidian/graph.json
+.obsidian/appearance.json
+
+# Optional: ignore plugin binaries but keep settings
+# .obsidian/plugins/**/*
+# !.obsidian/plugins/*/manifest.json
+# !.obsidian/plugins/*/data.json
+
