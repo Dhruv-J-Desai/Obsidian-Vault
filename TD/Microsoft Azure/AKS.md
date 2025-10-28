@@ -1,7 +1,9 @@
- - In AKS, Control plane is automatically created, configured, and managed by Azure.
-	-  It does provide:
-		- Prometheus: Highly available, scalable, and secure metrics platform to monitor
-		- Grafana: To visualize managed Prometheus data stored in Azure Monitor workspace.
-		- Alerts: To monitor events on your cluster, enable alerts recommended for monitoring configuration.
-		- Azure Key Valut: Secrets stores with a Kubernetes cluster via a CSI volume2
-	- 
+ - In AKS, Control plane is automatically created, configured, and managed by Azure (like control plane setup, upgrades, monitoring, scaling). We just focus on deploying and managing containerized applications.
+- `Node Pools:` Different sets of VMs (e.g., Linux vs Windows containers)
+- Integrated with Azure:
+	- Azure Container Registry
+	- Azure Active Directory (RBAC and auth)
+	- Prometheus: Highly available, scalable, and secure metrics platform to monitor
+	- Grafana: To visualize managed Prometheus data stored in Azure Monitor workspace.
+	- Alerts: To monitor events on your cluster, enable alerts recommended for monitoring configuration.
+	- Azure Key Vault: Secrets stores with a Kubernetes cluster via a CSI volume2
