@@ -1,54 +1,58 @@
 ```python
-import socket, time, errno, traceback
+import socket, time, errno, select
 
-def explain_errno(code: int) -> str:
-    names = {v: k for k, v in errno.__dict__.items() if isinstance(v, int)}
-    return names.get(code, "UNKNOWN")
+def probe(host: str, port: int = 1433, timeout: float = 5.0):
+    print(f"\n=== TCP probe {host}:{port} (timeout {timeout}s) ===")
 
-def tcp_probe(host: str, port: int = 1433, timeout: float = 5.0):
-    print(f"\n=== SQL TCP Probe: {host}:{port} (timeout {timeout}s) ===")
-
-    # DNS
-    t0 = time.time()
+    # Resolve DNS (you’ll also get the already-specified port back)
     try:
         infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
-        addrs = list({(ai[4][0], ai[4][1]) for ai in infos})
-        t_dns = (time.time() - t0) * 1000
-        print(f"✅ DNS resolved in {t_dns:.1f} ms -> {', '.join(ip for ip,_ in addrs)}")
     except Exception as e:
-        print("❌ DNS resolution failed")
-        traceback.print_exc()
-        return
+        print(f"❌ DNS resolution failed: {e}")
+        return False
 
-    # Try each resolved address
-    for ip, p in addrs:
+    # Try each address
+    for family, socktype, proto, _, addr in infos:
+        ip, p = addr[0], addr[1]
         print(f"\n--- Trying {ip}:{p} ---")
-        s = socket.socket(socket.AF_INET if ':' not in ip else socket.AF_INET6, socket.SOCK_STREAM)
-        s.settimeout(timeout)
-        t1 = time.time()
-        rc = s.connect_ex((ip, p))  # returns errno-style code (0 = success)
-        dt = (time.time() - t1) * 1000
-        if rc == 0:
-            print(f"✅ TCP connected in {dt:.1f} ms")
-            s.close()
-            return
-        else:
-            name = explain_errno(rc)
-            print(f"❌ TCP connect_ex rc={rc} ({name}) after {dt:.1f} ms")
-            # Common hints
-            if rc in (errno.ETIMEDOUT,):
-                print("Hint: Timeout → firewall dropping packets, wrong network/VPN, or host not reachable on this path.")
-            elif rc in (errno.ECONNREFUSED,):
-                print("Hint: Connection refused → host reachable but nothing is listening on that port (service down/wrong port).")
-            elif rc in (errno.EHOSTUNREACH, errno.ENETUNREACH):
-                print("Hint: Host/Network unreachable → routing/VPN/VNet/peering issue.")
-            elif rc in (errno.EADDRNOTAVAIL,):
-                print("Hint: Local address not available → local networking misconfig (rare).")
+        s = socket.socket(family, socktype, proto)
+        s.setblocking(False)
+        start = time.time()
+        try:
+            rc = s.connect_ex((ip, p))
+            # Immediate success
+            if rc == 0:
+                dt = (time.time() - start) * 1000
+                print(f"✅ Connected in {dt:.1f} ms")
+                s.close()
+                return True
+
+            # “Would block / in progress” → wait for writability
+            if rc in (errno.EINPROGRESS, errno.EWOULDBLOCK, getattr(errno, "WSAEWOULDBLOCK", 10035)):
+                # Wait until the socket is writable or timeout
+                r, w, e = select.select([], [s], [s], timeout)
+                if s in w:
+                    err = s.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
+                    dt = (time.time() - start) * 1000
+                    if err == 0:
+                        print(f"✅ Connected in {dt:.1f} ms")
+                        s.close()
+                        return True
+                    else:
+                        print(f"❌ Connect completed with error SO_ERROR={err}")
+                else:
+                    print("❌ Timed out waiting for TCP handshake (likely filtered by firewall or path issue)")
             else:
-                print("Hint: See OS firewall rules, security groups/NSGs, or server listener config.")
-        s.close()
+                # Hard immediate error
+                print(f"❌ connect_ex returned {rc} ({errno.errorcode.get(rc, 'UNKNOWN')}) immediately")
+
+        finally:
+            s.close()
+
+    print("❌ All addresses failed")
+    return False
 
 # Example:
-tcp_probe("your-sql-server-host", 1433)
+probe("your-sql-server-host", 1433)
 
 ```
