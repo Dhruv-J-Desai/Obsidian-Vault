@@ -1,3 +1,4 @@
+```python
 import socket, time, errno, traceback
 
 def explain_errno(code: int) -> str:
@@ -49,3 +50,5 @@ def tcp_probe(host: str, port: int = 1433, timeout: float = 5.0):
 
 # Example:
 tcp_probe("your-sql-server-host", 1433)
+
+```
